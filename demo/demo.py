@@ -65,6 +65,20 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--data_type",
+        type=str,
+        default="car",
+        help="building or car",
+    )
+
+    parser.add_argument(
+        "--segment_type",
+        type=str,
+        default="panoptic",
+        help="semantic or panoptic or instances",
+    )
+
+    parser.add_argument(
         "--confidence-threshold",
         type=float,
         default=0.5,
@@ -115,8 +129,9 @@ if __name__ == "__main__":
         for path in tqdm.tqdm(args.input, disable=not args.output):
             # use PIL, to be consistent with evaluation
             img = read_image(path, format="BGR")
+            # img = cv2.resize(img, (int(1280), int(img.shape[0] / (img.shape[1] / 1280))), cv2.INTER_CUBIC)
             start_time = time.time()
-            predictions, visualized_output = demo.run_on_image(img)
+            predictions, visualized_output = demo.run_on_image(img, args.segment_type, args.data_type)
             logger.info(
                 "{}: {} in {:.2f}s".format(
                     path,
@@ -130,11 +145,17 @@ if __name__ == "__main__":
             if args.output:
                 if os.path.isdir(args.output):
                     assert os.path.isdir(args.output), args.output
-                    out_filename = os.path.join(args.output, os.path.basename(path))
+                    out_filename = os.path.join(args.output, os.path.splitext(os.path.basename(path))[0] + ".png")
                 else:
                     assert len(args.input) == 1, "Please specify a directory with args.output"
                     out_filename = args.output
-                visualized_output.save(out_filename)
+                # visualized_output.save(out_filename)
+                if visualized_output is not None:
+                    print(visualized_output.shape, out_filename)
+                    print(np.unique(visualized_output), out_filename)
+                    cv2.imwrite(out_filename, visualized_output)
+                else:
+                    print("not segment data...")
             else:
                 cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
                 cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])

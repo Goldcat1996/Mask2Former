@@ -11,7 +11,9 @@ import torch
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
 from detectron2.utils.video_visualizer import VideoVisualizer
-from detectron2.utils.visualizer import ColorMode, Visualizer
+from detectron2.utils.visualizer import ColorMode
+from detectron2.utils.visualizer import Visualizer
+from utils.visualizer import Visualizer
 
 
 class VisualizationDemo(object):
@@ -36,7 +38,7 @@ class VisualizationDemo(object):
         else:
             self.predictor = DefaultPredictor(cfg)
 
-    def run_on_image(self, image):
+    def run_on_image(self, image, segment_type="semantic", data_type="building"):
         """
         Args:
             image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -50,17 +52,17 @@ class VisualizationDemo(object):
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
         visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
-        if "panoptic_seg" in predictions:
+        if segment_type == "panoptic":
             panoptic_seg, segments_info = predictions["panoptic_seg"]
             vis_output = visualizer.draw_panoptic_seg_predictions(
-                panoptic_seg.to(self.cpu_device), segments_info
+                panoptic_seg.to(self.cpu_device), segments_info, data_type=data_type
             )
         else:
-            if "sem_seg" in predictions:
+            if segment_type == "semantic":
                 vis_output = visualizer.draw_sem_seg(
-                    predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
+                    predictions["sem_seg"].argmax(dim=0).to(self.cpu_device), data_type=data_type
                 )
-            if "instances" in predictions:
+            elif segment_type == "instances":
                 instances = predictions["instances"].to(self.cpu_device)
                 vis_output = visualizer.draw_instance_predictions(predictions=instances)
 
