@@ -126,3 +126,4 @@ class MSDeformAttn(nn.Module):
         # output = ms_deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
         output = self.output_proj(output)
         return output
+
