@@ -164,7 +164,7 @@ class MaskFormer(nn.Module):
     def device(self):
         return self.pixel_mean.device
 
-    def forward(self, batched_inputs):
+    def forward(self, images):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper`.
@@ -190,14 +190,14 @@ class MaskFormer(nn.Module):
                     segments_info (list[dict]): Describe each segment in `panoptic_seg`.
                         Each dict contains keys "id", "category_id", "isthing".
         """
-        images = [x["image"].to(self.device) for x in batched_inputs]
+        """images = [x["image"].to(self.device) for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
-        images = ImageList.from_tensors(images, self.size_divisibility)
+        images = ImageList.from_tensors(images, self.size_divisibility)"""
 
-        features = self.backbone(images.tensor)
+        features = self.backbone(images[0]["tensor"])
         outputs = self.sem_seg_head(features)
 
-        if self.training:
+        if False:
             # mask classification target
             if "instances" in batched_inputs[0]:
                 gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
@@ -221,19 +221,21 @@ class MaskFormer(nn.Module):
             # upsample masks
             mask_pred_results = F.interpolate(
                 mask_pred_results,
-                size=(images.tensor.shape[-2], images.tensor.shape[-1]),
+                size=(images[0]["tensor"].shape[-2], images[0]["tensor"].shape[-1]),
                 mode="bilinear",
                 align_corners=False,
             )
+            return [mask_cls_results, mask_pred_results]
 
             del outputs
 
             processed_results = []
-            for mask_cls_result, mask_pred_result, input_per_image, image_size in zip(
-                mask_cls_results, mask_pred_results, batched_inputs, images.image_sizes
+            for mask_cls_result, mask_pred_result in zip(
+                mask_cls_results, mask_pred_results
             ):
-                height = input_per_image.get("height", image_size[0])
-                width = input_per_image.get("width", image_size[1])
+                height = int(images[0]["ori_sizes"][0].item())
+                width = int(images[0]["ori_sizes"][1].item())
+                image_size = (images[0]["image_sizes"][0].item(), images[0]["image_sizes"][1].item())
                 processed_results.append({})
 
                 if self.sem_seg_postprocess_before_inference:
@@ -243,7 +245,7 @@ class MaskFormer(nn.Module):
                     mask_cls_result = mask_cls_result.to(mask_pred_result)
 
                 # semantic segmentation inference
-                if self.semantic_on:
+                """if self.semantic_on:
                     r = retry_if_cuda_oom(self.semantic_inference)(mask_cls_result, mask_pred_result)
                     if not self.sem_seg_postprocess_before_inference:
                         r = retry_if_cuda_oom(sem_seg_postprocess)(r, image_size, height, width)
@@ -257,9 +259,10 @@ class MaskFormer(nn.Module):
                 # instance segmentation inference
                 if self.instance_on:
                     instance_r = retry_if_cuda_oom(self.instance_inference)(mask_cls_result, mask_pred_result)
-                    processed_results[-1]["instances"] = instance_r
+                    processed_results[-1]["instances"] = instance_r"""
 
-            return processed_results
+            # return processed_results[-1]
+            return [mask_cls_result, mask_pred_result]
 
     def prepare_targets(self, targets, images):
         h_pad, w_pad = images.tensor.shape[-2:]
